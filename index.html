@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Menú Semanal</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2f7d4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Menú Semanal">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f6f7f4;--card:#fff;--tx:#1d2420;--mu:#68736c;--ac:#2f7d4f;--ac2:#e6f2ea;--bd:#dfe4dd;--wa:#b3261e;--wa2:#fdeceb}
+@media(prefers-color-scheme:dark){:root{--bg:#121613;--card:#1b211d;--tx:#e8ede9;--mu:#98a39b;--ac:#58b27c;--ac2:#1f2e25;--bd:#2c352f;--wa:#ff8a80;--wa2:#35201f}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+header{background:var(--ac);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:19px}
+main{max-width:720px;margin:0 auto;padding:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row>label{flex:1;min-width:120px;font-size:13px;color:var(--mu)}
+input[type=number],textarea{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+input[type=number]{max-width:110px}
+.row>label input[type=number]{max-width:none;display:block;margin-top:3px}
+button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--ac);color:#fff;cursor:pointer}
+button.sec{background:var(--ac2);color:var(--ac)}
+button.dan{background:var(--wa2);color:var(--wa)}
+button.sm{padding:6px 10px;font-size:14px}
+.chk{display:flex;gap:6px;align-items:center;font-size:14px;margin:8px 12px 0 0}
+.bar{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px}
+.tot{font-weight:700}
+.ok{color:var(--ac)}.ko{color:var(--wa)}
+.warn{background:var(--wa2);color:var(--wa);border-radius:10px;padding:10px;margin-bottom:12px;font-size:14px}
+details.dia{background:var(--card);border:1px solid var(--bd);border-radius:12px;margin-bottom:8px}
+details.dia summary{padding:12px;cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline}
+details.dia summary::-webkit-details-marker{display:none}
+.dn{font-weight:700;color:var(--ac);min-width:34px}
+.rn{flex:1}
+.mu{color:var(--mu);font-size:13px}
+.body{padding:0 12px 12px}
+.body ul,.body ol{margin:6px 0 10px;padding-left:20px}
+h2{font-size:15px;margin:14px 0 6px;color:var(--ac)}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:12px 4px;font-size:13px}
+nav button.on{color:var(--ac);font-weight:700}
+.it{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)}
+.it:last-child{border:0}
+.it .t{flex:1}
+.it.done .t{text-decoration:line-through;opacity:.5}
+.it input[type=checkbox]{width:20px;height:20px}
+.pr{display:grid;grid-template-columns:1fr 84px 84px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd)}
+.pr input{max-width:none}
+.ph{display:grid;grid-template-columns:1fr 84px 84px;gap:8px;font-size:12px;color:var(--mu)}
+textarea{min-height:90px;font-family:monospace;font-size:13px}
+#toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;z-index:9;max-width:90%}
+#toast.on{opacity:1}
+.empty{text-align:center;color:var(--mu);padding:30px 10px}
+</style>
+</head>
+<body>
+<header><h1>🍽️ Menú Semanal</h1></header>
+<main id="app"></main>
+<nav>
+  <button data-tab="menu" class="on">📅 Menú</button>
+  <button data-tab="compra">🛒 Compra</button>
+  <button data-tab="precios">€ Precios</button>
+  <button data-tab="hist">🗂️ Historial</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ============ CATÁLOGO DE INGREDIENTES (precios orientativos, editables en la pestaña Precios) ============ */
+const V='Frutas y verduras',C='Carne y pescado',L='Lácteos y huevos',D='Despensa',G='Congelados',P='Pan';
+const AISLES=[V,C,G,L,P,D];
+const ING={};
+function I(id,n,u,pack,price,aisle,x){ING[id]={id,n,u,pack,price,aisle,x:x||''};}
+I('cebolla','Cebolla','g',1000,1.60,V);
+I('ajo','Ajo (dientes)','ud',25,1.00,V);
+I('tomate','Tomate','g',1000,2.20,V);
+I('pimiento','Pimiento','g',500,1.60,V);
+I('zanahoria','Zanahoria','g',1000,1.20,V);
+I('patata','Patata','g',2000,2.20,V);
+I('calabacin','Calabacín','g',500,1.40,V);
+I('berenjena','Berenjena','g',500,1.50,V);
+I('champi','Champiñones','g',500,2.20,V);
+I('espinacas','Espinacas','g',300,1.80,V);
+I('lechuga','Lechuga','ud',1,1.00,V);
+I('limon','Limón','ud',4,1.60,V);
+I('brocoli','Brócoli','g',500,1.80,V);
+I('judias','Judías verdes','g',500,2.20,V);
+I('pepino','Pepino','ud',1,0.60,V);
+I('pechuga','Pechuga de pollo','g',600,4.60,C,'carne');
+I('muslos','Muslos de pollo','g',1000,3.50,C,'carne');
+I('picada','Carne picada mixta','g',500,4.20,C,'carne');
+I('lomo','Lomo de cerdo','g',500,3.90,C,'cerdo');
+I('chorizo','Chorizo','g',200,2.20,C,'cerdo');
+I('jamon','Taquitos de jamón','g',200,1.90,C,'cerdo');
+I('salmon','Salmón (lomos)','g',300,4.90,C,'pescado');
+I('atun','Atún en lata','ud',3,2.60,D,'pescado');
+I('merluza','Merluza (filetes congelados)','g',400,4.20,G,'pescado');
+I('huevos','Huevos','ud',12,2.60,L);
+I('queso','Queso rallado','g',200,1.60,L);
+I('mozzarella','Mozzarella','g',250,1.30,L);
+I('nata','Nata para cocinar','ml',200,1.00,L);
+I('pan','Pan (barra)','ud',1,0.60,P);
+I('arroz','Arroz','g',1000,1.30,D);
+I('pasta','Pasta (macarrones / espaguetis)','g',500,0.95,D);
+I('lentejas','Lentejas','g',500,1.40,D);
+I('garbanzos','Garbanzos cocidos','g',400,0.95,D);
+I('alubias','Alubias cocidas','g',400,0.95,D);
+I('cuscus','Cuscús','g',500,1.20,D);
+I('fideos','Fideos','g',250,0.75,D);
+I('tortillas','Tortillas de trigo','ud',8,1.60,D);
+I('tomatrit','Tomate triturado','g',800,1.10,D);
+I('tomfrito','Tomate frito','g',400,1.00,D);
+I('caldo','Caldo de pollo','ml',1000,1.15,D);
+I('soja','Salsa de soja','ml',150,1.20,D);
+I('panrallado','Pan rallado','g',500,1.00,D);
+I('harina','Harina','g',1000,0.95,D);
+I('aceite','Aceite de oliva','ml',1000,7.90,D);
+I('sal','Sal','g',1000,0.40,D);
+I('pimenton','Pimentón','g',75,1.20,D);
+const TENGO_DEFECTO=['aceite','sal','pimenton','harina'];
+
+/* ============ RECETAS (cantidades POR PERSONA) ============ */
+const R=[];
+function Rc(id,n,t,c,ing,p){R.push({id,n,t,c,ing,p:p.split('|')});}
+Rc('arroz_pollo','Arroz con pollo y verduras',40,'arroz',[['pechuga',110],['arroz',80],['pimiento',50],['cebolla',40],['tomatrit',50],['caldo',220],['ajo',1],['aceite',12],['sal',2]],
+ 'Trocea el pollo, sazónalo y dóralo en una cazuela con aceite.|Añade cebolla, pimiento y ajo picados y rehoga 5 minutos.|Incorpora el tomate y el arroz, remueve y vierte el caldo caliente.|Cuece 18 minutos a fuego medio y deja reposar 5 minutos.');
+Rc('lentejas_verd','Lentejas estofadas con verduras',45,'legumbre',[['lentejas',80],['zanahoria',50],['cebolla',40],['patata',80],['ajo',1],['pimenton',2],['aceite',10],['sal',2]],
+ 'Sofríe cebolla, ajo y zanahoria picados en aceite.|Añade el pimentón y las lentejas y cubre con agua.|Cuece 20 minutos, añade la patata en dados y cuece 20 minutos más.|Rectifica de sal y sirve.');
+Rc('boloñesa','Espaguetis a la boloñesa',30,'pasta',[['pasta',90],['picada',100],['cebolla',40],['zanahoria',30],['tomatrit',100],['ajo',1],['aceite',10],['sal',2]],
+ 'Sofríe cebolla, zanahoria y ajo muy picados.|Añade la carne picada y dórala suelta.|Vierte el tomate, sazona y cuece 15 minutos a fuego bajo.|Cuece la pasta, escúrrela y mézclala con la salsa.');
+Rc('tortilla','Tortilla de patatas con ensalada',35,'huevo',[['huevos',1.5],['patata',180],['cebolla',40],['aceite',40],['lechuga',0.2],['tomate',80],['sal',2]],
+ 'Pela y corta la patata y la cebolla en láminas finas y pochalas en aceite 15 minutos.|Escurre, mézclalas con los huevos batidos y sal.|Cuaja la mezcla en sartén 3-4 minutos por lado.|Acompaña con lechuga y tomate aliñados.');
+Rc('merluza_horno','Merluza al horno con patatas',40,'pescado',[['merluza',150],['patata',200],['cebolla',50],['limon',0.25],['ajo',1],['aceite',15],['sal',2]],
+ 'Corta patata y cebolla en rodajas finas y hornéalas con aceite y sal 20 minutos a 200 °C.|Coloca la merluza encima con ajo laminado y un chorrito de limón.|Hornea 12-15 minutos más.');
+Rc('pollo_horno','Pollo al horno con patatas',55,'ave',[['muslos',250],['patata',200],['ajo',1],['limon',0.25],['pimenton',2],['aceite',15],['sal',2]],
+ 'Mezcla aceite, pimentón, sal, ajo picado y zumo de limón y unta los muslos.|Pela y corta las patatas en gajos y colócalas en la bandeja con el pollo.|Hornea 45 minutos a 200 °C, dándoles la vuelta a mitad.');
+Rc('mac_atun','Macarrones con tomate y atún',20,'pasta',[['pasta',90],['tomfrito',100],['atun',0.5],['queso',15],['sal',2]],
+ 'Cuece la pasta en agua con sal y escúrrela.|Calienta el tomate frito con el atún desmigado.|Mezcla con la pasta y gratina con el queso rallado si quieres.');
+Rc('garbanzos_esp','Garbanzos con espinacas',25,'legumbre',[['garbanzos',200],['espinacas',100],['ajo',1],['pimenton',2],['tomfrito',40],['aceite',10],['sal',2]],
+ 'Dora el ajo laminado en aceite y añade el pimentón sin que se queme.|Incorpora las espinacas y saltea hasta que reduzcan.|Añade los garbanzos escurridos y el tomate y cuece 10 minutos con un poco de agua.');
+Rc('crema_calab','Crema de calabacín con huevo cocido',30,'verdura',[['calabacin',250],['patata',100],['cebolla',40],['nata',30],['huevos',1],['aceite',10],['sal',2]],
+ 'Pocha la cebolla en aceite y añade calabacín y patata en trozos.|Cubre con agua, sala y cuece 20 minutos.|Tritura con la nata hasta que quede fina.|Sirve con huevo cocido picado por encima.');
+Rc('salteado_pollo','Salteado de pollo con verduras y arroz',30,'ave',[['pechuga',130],['arroz',70],['pimiento',60],['zanahoria',60],['cebolla',40],['soja',15],['aceite',10]],
+ 'Cuece el arroz y reserva.|Saltea el pollo en tiras a fuego fuerte y retíralo.|Saltea las verduras cortadas en juliana 6 minutos.|Devuelve el pollo, añade la soja y mezcla con el arroz.');
+Rc('hamburguesas','Hamburguesas caseras con patatas',35,'carne',[['picada',130],['huevos',0.25],['panrallado',15],['patata',200],['cebolla',30],['tomate',60],['lechuga',0.2],['aceite',20],['sal',2]],
+ 'Mezcla la carne con huevo, pan rallado, cebolla muy picada y sal y forma las hamburguesas.|Fríe o hornea las patatas en bastones.|Haz las hamburguesas a la plancha 4 minutos por lado.|Sirve con tomate y lechuga.');
+Rc('pasta_horno','Pasta con verduras y mozzarella',35,'pasta',[['pasta',90],['calabacin',80],['pimiento',60],['tomatrit',80],['mozzarella',50],['ajo',1],['aceite',10],['sal',2]],
+ 'Saltea calabacín, pimiento y ajo en dados 8 minutos y añade el tomate.|Cuece la pasta y mézclala con la salsa.|Pásala a una fuente, cubre con mozzarella y gratina 8 minutos.');
+Rc('ensalada_arroz','Ensalada de arroz con atún y huevo',25,'arroz',[['arroz',70],['atun',0.5],['tomate',100],['huevos',0.5],['pepino',0.25],['aceite',10],['sal',1]],
+ 'Cuece el arroz, escúrrelo y enfríalo bajo el grifo.|Cuece los huevos 10 minutos.|Mezcla con tomate y pepino en dados, atún y huevo picado y aliña con aceite y sal.');
+Rc('fajitas','Fajitas de pollo',25,'ave',[['tortillas',2],['pechuga',120],['pimiento',60],['cebolla',50],['queso',15],['tomate',40],['aceite',10],['sal',2]],
+ 'Corta pollo, pimiento y cebolla en tiras y saltéalos con sal 10 minutos.|Calienta las tortillas en seco.|Rellena con el salteado, tomate en dados y queso y enrolla.');
+Rc('albondigas','Albóndigas en salsa con arroz',45,'carne',[['picada',130],['huevos',0.25],['panrallado',20],['cebolla',50],['tomfrito',100],['arroz',70],['ajo',1],['harina',10],['aceite',15],['sal',2]],
+ 'Mezcla carne, huevo, pan rallado, ajo picado y sal; forma bolas y enharínalas.|Dóralas en aceite y resérvalas.|Pocha la cebolla, añade el tomate y un vaso de agua y cuece las albóndigas 15 minutos.|Sirve con el arroz cocido.');
+Rc('salmon','Salmón a la plancha con brócoli y patata',30,'pescado',[['salmon',150],['brocoli',150],['patata',150],['limon',0.25],['aceite',10],['sal',2]],
+ 'Cuece patata y brócoli 12 minutos y escúrrelos.|Marca el salmón a la plancha 3-4 minutos por lado con sal.|Sirve con limón y un chorrito de aceite.');
+Rc('judias','Judías verdes con patatas y huevo',30,'verdura',[['judias',200],['patata',150],['ajo',1],['huevos',1],['aceite',15],['sal',2]],
+ 'Cuece judías y patata en dados 15-18 minutos con sal.|Escurre y reserva.|Dora el ajo laminado en aceite y rehoga las verduras con él.|Sirve con un huevo cocido o a la plancha.');
+Rc('alubias','Alubias con verduras',25,'legumbre',[['alubias',200],['zanahoria',50],['cebolla',40],['pimiento',40],['tomatrit',60],['pimenton',2],['aceite',10],['sal',2]],
+ 'Sofríe cebolla, pimiento y zanahoria picados.|Añade pimentón y tomate y cuece 5 minutos.|Incorpora las alubias escurridas y agua y cuece 12 minutos.');
+Rc('pizza_tortilla','Pizzas rápidas de tortilla de trigo',20,'masa',[['tortillas',2],['tomfrito',60],['mozzarella',60],['champi',60],['cebolla',30]],
+ 'Extiende tomate sobre las tortillas.|Añade champiñón laminado, cebolla fina y mozzarella.|Hornea 8-10 minutos a 220 °C.');
+Rc('cuscus','Cuscús con pollo y verduras',25,'ave',[['cuscus',80],['pechuga',100],['calabacin',80],['zanahoria',50],['cebolla',40],['caldo',120],['aceite',10],['sal',1]],
+ 'Saltea el pollo en dados y retíralo.|Saltea las verduras troceadas 8 minutos.|Hidrata el cuscús con el caldo caliente 5 minutos y suéltalo con un tenedor.|Mezcla todo y sirve.');
+Rc('revuelto','Revuelto de champiñones con huevo',15,'huevo',[['huevos',2],['champi',120],['ajo',1],['pan',0.25],['aceite',10],['sal',1]],
+ 'Saltea los champiñones laminados con ajo hasta que suelten el agua y se doren.|Añade los huevos batidos y remueve a fuego bajo hasta que cuajen.|Sirve con pan.');
+Rc('lomo','Lomo de cerdo con pimientos y patatas',40,'carne',[['lomo',150],['pimiento',80],['patata',200],['ajo',1],['aceite',15],['sal',2]],
+ 'Fríe o hornea la patata en rodajas hasta dorar.|Saltea el pimiento en tiras con ajo.|Haz el lomo en filetes a la plancha 3 minutos por lado y sirve todo junto.');
+Rc('sopa_fideos','Sopa de fideos con verduras y huevo',25,'sopa',[['fideos',60],['zanahoria',40],['cebolla',30],['caldo',300],['huevos',0.5],['aceite',5]],
+ 'Rehoga cebolla y zanahoria picadas en aceite.|Añade el caldo y llévalo a ebullición.|Echa los fideos y cuece 6 minutos, añadiendo el huevo batido al final.');
+Rc('carbonara','Pasta carbonara ligera',20,'pasta',[['pasta',90],['jamon',40],['nata',40],['huevos',0.5],['queso',15],['sal',1]],
+ 'Cuece la pasta.|Dora el jamón en la sartén y añade la nata.|Fuera del fuego mezcla la pasta con la salsa y el huevo batido y el queso.');
+Rc('berenjenas','Berenjenas gratinadas con arroz',40,'verdura',[['berenjena',200],['tomatrit',80],['mozzarella',50],['cebolla',30],['arroz',60],['aceite',10],['sal',2]],
+ 'Corta las berenjenas en rodajas y hornéalas 15 minutos con aceite y sal.|Prepara una salsa con cebolla y tomate.|Monta capas de berenjena, salsa y mozzarella y gratina 10 minutos.|Sirve con arroz blanco.');
+Rc('lentejas_chorizo','Lentejas con chorizo',45,'legumbre',[['lentejas',80],['chorizo',25],['zanahoria',40],['patata',80],['cebolla',30],['ajo',1],['pimenton',2],['sal',2]],
+ 'Pon las lentejas con zanahoria, cebolla, ajo, chorizo y agua a cocer.|A los 20 minutos añade la patata en dados y el pimentón.|Cuece 20 minutos más y deja reposar.');
+Rc('pisto','Pisto con huevo frito',35,'verdura',[['calabacin',100],['pimiento',80],['tomatrit',100],['cebolla',50],['huevos',1],['pan',0.25],['aceite',20],['sal',2]],
+ 'Sofríe cebolla y pimiento 8 minutos y añade el calabacín.|Agrega el tomate y cuece 20 minutos a fuego bajo.|Sirve con un huevo frito y pan.');
+const RB={};R.forEach(r=>RB[r.id]=r);
+
+/* ============ ESTADO ============ */
+const LS='menusemanal.v1';
+const DIAS=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+let S=Object.assign({presupuesto:40,personas:2,sinCarne:false,sinCerdo:false,sinPescado:false,menu:[],precios:{},packs:{},tengo:TENGO_DEFECTO.slice(),comprado:[],historial:[],aviso:''},(function(){try{return JSON.parse(localStorage.getItem(LS))||{}}catch(e){return{}}})());
+let TAB='menu';
+function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
+
+/* ============ LÓGICA ============ */
+const priceOf=id=>(S.precios[id]!=null?S.precios[id]:ING[id].price);
+const packOf=id=>(S.packs[id]!=null?S.packs[id]:ING[id].pack);
+function pool(){return R.filter(r=>r.ing.every(([i])=>{const x=ING[i].x;
+  if(S.sinCarne&&x)return false;
+  if(S.sinCerdo&&x==='cerdo')return false;
+  if(S.sinPescado&&x==='pescado')return false;
+  return true;}));}
+function shopList(menu){
+  const n={};
+  for(const rid of menu){const r=RB[rid];if(!r)continue;for(const [i,q] of r.ing)n[i]=(n[i]||0)+q*S.personas;}
+  return Object.keys(n).map(id=>{
+    const need=n[id],pack=packOf(id),packs=Math.max(1,Math.ceil(need/pack-1e-9)),price=priceOf(id);
+    return{id,need,pack,packs,cost:packs*price,use:need/pack*price,have:S.tengo.includes(id)};});}
+function totals(menu){let compra=0,consumo=0;for(const it of shopList(menu)){if(!it.have){compra+=it.cost;consumo+=it.use;}}return{compra,consumo};}
+function variety(menu){const c={};menu.forEach(id=>{const k=RB[id].c;c[k]=(c[k]||0)+1;});
+  let pen=0;Object.values(c).forEach(v=>{if(v>2)pen+=v-2;});return Object.keys(c).length*2-pen;}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function gen(){
+  S.aviso='';S.comprado=[];
+  const p=pool();
+  if(!p.length){S.menu=[];S.aviso='No hay recetas con esos filtros.';return;}
+  const n=Math.min(7,p.length);let best=null,bs=-1e9;
+  for(let k=0;k<800;k++){
+    const m=shuffle(p.slice()).slice(0,n).map(r=>r.id);
+    const c=totals(m).compra,ok=c<=S.presupuesto+1e-9;
+    const sc=ok?1000+variety(m)*100-c:-c;
+    if(sc>bs){bs=sc;best=m;}
+  }
+  S.menu=best;
+  const c=totals(best).compra;
+  if(c>S.presupuesto+1e-9)S.aviso='Con ese presupuesto no sale: el menú más barato que he encontrado cuesta '+eur(c)+'. Sube el presupuesto, baja las personas o marca más ingredientes como «en casa».';
+  if(n<7)S.aviso+=(S.aviso?' ':'')+'Solo hay '+n+' recetas con esos filtros.';
+}
+function swap(i){
+  const p=pool().filter(r=>!S.menu.includes(r.id));
+  if(!p.length){toast('No hay más recetas con esos filtros');return;}
+  S.menu[i]=p[Math.floor(Math.random()*p.length)].id;S.comprado=[];save();render();
+}
+
+/* ============ FORMATO ============ */
+const eur=n=>n.toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+function fq(q,u){
+  if(u==='ud'){const r=Math.round(q*2)/2;return String(r).replace('.',',')+' ud';}
+  if(q>=1000)return (q/1000).toFixed(2).replace('.',',')+(u==='g'?' kg':' l');
+  const r=q<10?Math.round(q):Math.round(q/5)*5;return r+' '+u;}
+function packLabel(id){const u=ING[id].u,p=packOf(id);return u==='ud'?p+' ud':fq(p,u);}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200);}
+
+/* ============ RENDER ============ */
+function bar(){
+  const t=totals(S.menu),ok=t.compra<=S.presupuesto+1e-9;
+  return '<div class="bar"><span>Compra: <span class="tot '+(ok?'ok':'ko')+'">'+eur(t.compra)+'</span> de '+eur(S.presupuesto)+'</span><span class="mu">Consumo real: '+eur(t.consumo)+'</span></div>';}
+function renderMenu(){
+  let h='<div class="card"><div class="row">'
+   +'<label>Presupuesto semanal (€)<input type="number" id="presupuesto" min="5" step="1" value="'+S.presupuesto+'"></label>'
+   +'<label>Personas<input type="number" id="personas" min="1" max="12" step="1" value="'+S.personas+'"></label></div>'
+   +'<div class="row"><label class="chk"><input type="checkbox" data-f="sinCarne"'+(S.sinCarne?' checked':'')+'> Vegetariano</label>'
+   +'<label class="chk"><input type="checkbox" data-f="sinCerdo"'+(S.sinCerdo?' checked':'')+'> Sin cerdo</label>'
+   +'<label class="chk"><input type="checkbox" data-f="sinPescado"'+(S.sinPescado?' checked':'')+'> Sin pescado</label></div>'
+   +'<div class="row" style="margin-top:10px"><button data-act="gen">✨ Generar menú</button>'
+   +(S.menu.length?'<button class="sec" data-act="saveweek">💾 Guardar semana</button>':'')+'</div></div>';
+  if(S.aviso)h+='<div class="warn">'+esc(S.aviso)+'</div>';
+  if(!S.menu.length){h+='<div class="empty">Pulsa «Generar menú» para crear tus 7 cenas.</div>';return h;}
+  h+='<div class="card">'+bar()+'</div>';
+  S.menu.forEach((id,i)=>{
+    const r=RB[id];
+    h+='<details class="dia"><summary><span class="dn">'+DIAS[i]+'</span><span class="rn">'+esc(r.n)+'</span><span class="mu">'+r.t+' min</span></summary><div class="body">'
+     +'<h2>Ingredientes ('+S.personas+' pers.)</h2><ul>'
+     +r.ing.map(([k,q])=>'<li>'+esc(ING[k].n)+': '+fq(q*S.personas,ING[k].u)+'</li>').join('')+'</ul>'
+     +'<h2>Preparación</h2><ol>'+r.p.map(s=>'<li>'+esc(s)+'</li>').join('')+'</ol>'
+     +'<button class="sec sm" data-act="swap" data-i="'+i+'">🔄 Cambiar receta</button></div></details>';
+  });
+  return h;}
+function renderCompra(){
+  if(!S.menu.length)return '<div class="empty">Primero genera un menú.</div>';
+  const list=shopList(S.menu);
+  let h='<div class="card">'+bar()+'<div class="mu" style="margin-top:6px">Toca una fila para tacharla. «🏠» = ya lo tienes en casa (no suma al total).</div></div>';
+  AISLES.forEach(a=>{
+    const its=list.filter(x=>ING[x.id].aisle===a).sort((x,y)=>ING[x.id].n.localeCompare(ING[y.id].n,'es'));
+    if(!its.length)return;
+    h+='<div class="card"><h2 style="margin-top:0">'+a+'</h2>';
+    its.forEach(x=>{
+      const g=ING[x.id],done=S.comprado.includes(x.id);
+      h+='<div class="it'+(done?' done':'')+'" data-act="tick" data-id="'+x.id+'"><input type="checkbox" '+(done?'checked':'')+' tabindex="-1">'
+       +'<div class="t">'+esc(g.n)+'<div class="mu">Necesitas '+fq(x.need,g.u)+' · '+x.packs+' × '+packLabel(x.id)+(x.have?' · en casa':' · '+eur(x.cost))+'</div></div>'
+       +'<button class="sm '+(x.have?'':'sec')+'" data-act="have" data-id="'+x.id+'">🏠</button></div>';
+    });
+    h+='</div>';});
+  return h;}
+function renderPrecios(){
+  let h='<div class="card"><div class="mu">Precios orientativos de ejemplo: no son de ninguna tienda. Edítalos con los de tu supermercado (precio del envase y tamaño del envase).</div>'
+   +'<div class="row" style="margin-top:10px"><button class="sec sm" data-act="export">📤 Exportar</button><button class="sec sm" data-act="import">📥 Importar</button><button class="dan sm" data-act="resetp">↩︎ Restaurar</button></div>'
+   +'<textarea id="io" placeholder=\'{"arroz":{"price":1.30,"pack":1000}}\' style="margin-top:10px"></textarea></div>';
+  AISLES.forEach(a=>{
+    const its=Object.values(ING).filter(g=>g.aisle===a);
+    h+='<div class="card"><h2 style="margin-top:0">'+a+'</h2><div class="ph"><span></span><span>Envase ('+'g/ml/ud)</span><span>Precio €</span></div>';
+    its.forEach(g=>{h+='<div class="pr"><span>'+esc(g.n)+'</span>'
+      +'<input type="number" min="1" step="any" data-pk="'+g.id+'" value="'+packOf(g.id)+'">'
+      +'<input type="number" min="0" step="0.01" data-pp="'+g.id+'" value="'+priceOf(g.id)+'"></div>';});
+    h+='</div>';});
+  return h;}
+function renderHist(){
+  if(!S.historial.length)return '<div class="empty">Aún no has guardado ninguna semana.</div>';
+  return S.historial.map((w,i)=>'<div class="card"><b>'+esc(w.fecha)+'</b> · '+w.personas+' pers. · '+eur(w.compra)
+    +'<div class="mu" style="margin:6px 0">'+w.menu.filter(id=>RB[id]).map((id,k)=>DIAS[k]+': '+esc(RB[id].n)).join('<br>')+'</div>'
+    +'<div class="row"><button class="sec sm" data-act="loadw" data-i="'+i+'">Cargar</button><button class="dan sm" data-act="delw" data-i="'+i+'">Borrar</button></div></div>').join('');}
+function render(){
+  const open=[...document.querySelectorAll('details.dia')].map(d=>d.open);
+  const app=document.getElementById('app');
+  app.innerHTML=TAB==='menu'?renderMenu():TAB==='compra'?renderCompra():TAB==='precios'?renderPrecios():renderHist();
+  if(TAB==='menu')document.querySelectorAll('details.dia').forEach((d,i)=>{if(open[i])d.open=true;});
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===TAB));
+}
+
+/* ============ EVENTOS ============ */
+document.addEventListener('click',e=>{
+  const nb=e.target.closest('nav button');
+  if(nb){TAB=nb.dataset.tab;render();window.scrollTo(0,0);return;}
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act,id=b.dataset.id,i=+b.dataset.i;
+  if(a==='gen'){gen();save();render();}
+  else if(a==='swap'){swap(i);}
+  else if(a==='have'){e.stopPropagation();const k=S.tengo.indexOf(id);if(k>=0)S.tengo.splice(k,1);else S.tengo.push(id);save();render();}
+  else if(a==='tick'){const k=S.comprado.indexOf(id);if(k>=0)S.comprado.splice(k,1);else S.comprado.push(id);save();render();}
+  else if(a==='saveweek'){const t=totals(S.menu);S.historial.unshift({fecha:new Date().toLocaleDateString('es-ES'),personas:S.personas,compra:t.compra,menu:S.menu.slice()});S.historial=S.historial.slice(0,30);save();toast('Semana guardada');}
+  else if(a==='loadw'){const w=S.historial[i];if(w){S.menu=w.menu.filter(x=>RB[x]);S.personas=w.personas;S.aviso='';S.comprado=[];TAB='menu';save();render();}}
+  else if(a==='delw'){S.historial.splice(i,1);save();render();}
+  else if(a==='export'){const o={};Object.keys(ING).forEach(k=>{o[k]={price:priceOf(k),pack:packOf(k)};});document.getElementById('io').value=JSON.stringify(o);toast('Copia el texto de la caja');}
+  else if(a==='import'){
+    try{const o=JSON.parse(document.getElementById('io').value);let n=0;
+      for(const k in o){if(!ING[k]||typeof o[k]!=='object'||o[k]===null)continue;
+        const p=Number(o[k].price),q=Number(o[k].pack);
+        if(isFinite(p)&&p>=0&&o[k].price!=null){S.precios[k]=p;n++;}
+        if(isFinite(q)&&q>0&&o[k].pack!=null){S.packs[k]=q;}}
+      save();render();toast(n+' precios importados');}
+    catch(err){toast('JSON no válido');}}
+  else if(a==='resetp'){if(confirm('¿Restaurar todos los precios y envases iniciales?')){S.precios={};S.packs={};save();render();}}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='presupuesto'){const v=parseFloat(t.value);if(v>0){S.presupuesto=v;save();render();}}
+  else if(t.id==='personas'){const v=parseInt(t.value,10);if(v>=1&&v<=12){S.personas=v;save();render();}}
+  else if(t.dataset.f){S[t.dataset.f]=t.checked;save();toast('Pulsa «Generar menú» para aplicar el filtro');}
+  else if(t.dataset.pp){const v=parseFloat(t.value);if(v>=0){S.precios[t.dataset.pp]=v;save();}}
+  else if(t.dataset.pk){const v=parseFloat(t.value);if(v>0){S.packs[t.dataset.pk]=v;save();}}
+});
+
+if(!S.menu.length)gen();
+S.menu=S.menu.filter(id=>RB[id]);
+render();
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>
